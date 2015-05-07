@@ -506,21 +506,16 @@ class NoseTestSuiteRunner(BasicNoseRunner):
                 cursor = connection.cursor()
                 style = no_style()
 
-                if uses_mysql(connection):
-                    reset_statements = _mysql_reset_sequences(
-                        style, connection)
-                else:
-                    reset_statements = connection.ops.sequence_reset_sql(
-                            style, self._get_models_for_connection(connection))
+                with transaction.atomic():
+                    if uses_mysql(connection):
+                        reset_statements = _mysql_reset_sequences(
+                            style, connection)
+                    else:
+                        reset_statements = connection.ops.sequence_reset_sql(
+                                style, self._get_models_for_connection(connection))
 
-                for reset_statement in reset_statements:
-                    cursor.execute(reset_statement)
-
-                # Django v1.3 (https://code.djangoproject.com/ticket/9964)
-                # starts using commit_unless_managed() for individual
-                # connections. Backwards compatibility for Django 1.2 is to use
-                # the generic transaction function.
-                transaction.commit_unless_managed(using=connection.alias)
+                    for reset_statement in reset_statements:
+                        cursor.execute(reset_statement)
 
                 # Each connection has its own creation object, so this affects
                 # only a single connection:
